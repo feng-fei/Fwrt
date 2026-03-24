@@ -56,7 +56,7 @@ jobs:
     - name: Download package
       run: cd openwrt && make defconfig && make download -j$(nproc)
 
-       - name: Compile the firmware
+    - name: Compile the firmware
       run: |
         cd openwrt
         make -j$(nproc) || make -j1 V=s
@@ -76,6 +76,6 @@ jobs:
       with:
         tag_name: F-wrt_${{ env.STRAP_DATE }}
         name: F-wrt 自动编译发布 - ${{ env.STRAP_DATE }}
-        files: ${{ env.FIRMWARE }}/F-wrt-*
+        文件: ${{ env.FIRMWARE }}/F-wrt-*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
