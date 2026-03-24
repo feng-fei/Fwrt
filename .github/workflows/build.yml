@@ -1,0 +1,81 @@
+name: Auto Build ImmortalWRT x86
+
+于:
+  repository_dispatch:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 20 * * *' # 每天北京时间 04:00 运行 (UTC 20:00)
+
+env:
+  REPO_URL: https://github.com/immortalwrt/immortalwrt
+  REPO_BRANCH: master
+  FEEDS_CONF: feeds.conf.default
+  CONFIG_FILE: .config
+  DIY_P1_SH: diy-part1.sh
+  DIY_P2_SH: diy-part2.sh
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install $(curl -fsSL https://is.gd/depends_ubuntu_2204)
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "$TZ"
+
+    - name: Clone source code
+      run: |
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
+    - name: Load custom feeds
+      run: |
+        chmod +x $DIY_P1_SH
+        cd openwrt && $GITHUB_WORKSPACE/$DIY_P1_SH
+
+    - name: Update & Install feeds
+      run: cd openwrt && ./scripts/feeds update -a && ./scripts/feeds install -a
+
+    - name: Load custom configuration
+      run: |
+        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
+        chmod +x $DIY_P2_SH
+        cd openwrt && $GITHUB_WORKSPACE/$DIY_P2_SH
+
+    - name: Download package
+      run: cd openwrt && make defconfig && make download -j$(nproc)
+
+       - name: Compile the firmware
+      run: |
+        cd openwrt
+        make -j$(nproc) || make -j1 V=s
+        echo "STRAP_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
+
+    - name: Organize files
+      run: |
+        cd openwrt/bin/targets/x86/64
+        # 将生成的镜像重命名为 F-wrt，方便识别
+        for file in *.img.gz; do
+          mv "$file" "F-wrt-${{ env.STRAP_DATE }}-${file}"
+        done
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+
+    - name: Upload firmware to Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: F-wrt_${{ env.STRAP_DATE }}
+        name: F-wrt 自动编译发布 - ${{ env.STRAP_DATE }}
+        files: ${{ env.FIRMWARE }}/F-wrt-*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
