@@ -1,23 +1,22 @@
-name: Auto Build ImmortalWRT x86
+name: Auto Build F-wrt x86 (Optimized)
 
-on: 
+on:
   repository_dispatch:
   workflow_dispatch:
   schedule:
-    - cron: '0 20 * * *' # 每天北京时间 04:00 运行 (UTC 20:00)
+    - cron: '0 20 * * *' # 每天北京时间 04:00 运行
 
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
   REPO_BRANCH: master
-  FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: .config
-  DIY_P1_SH: diy-part1.sh
-  DIY_P2_SH: diy-part2.sh
   TZ: Asia/Shanghai
 
 jobs:
   build:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      actions: write  # 必须开启，用于自动清理缓存
 
     steps:
     - name: Checkout
@@ -35,26 +34,37 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
 
     - name: Clone source code
-      run: |
-        git clone $REPO_URL -b $REPO_BRANCH openwrt
-        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+      run: git clone $REPO_URL -b $REPO_BRANCH openwrt
+
+    # --- 核心：开启缓存 ---
+    - name: Cache OpenWrt Build
+      uses: actions/cache@v4
+      with:
+        path: |
+          openwrt/dl
+          openwrt/staging_dir
+          openwrt/build_dir
+        # 使用 feeds 内容的 hash 作为 key，如果插件列表变了，缓存会自动失效重新建立
+        key: ${{ runner.os }}-openwrt-${{ hashFiles('openwrt/feeds.conf.default') }}-${{ github.run_id }}
+        # 允许恢复旧缓存，即使 key 不完全匹配
+        restore-keys: |
+          ${{ runner.os }}-openwrt-${{ hashFiles('openwrt/feeds.conf.default') }}-
+          ${{ runner.os }}-openwrt-
 
     - name: Load custom feeds
-      run: |
-        chmod +x $DIY_P1_SH
-        cd openwrt && $GITHUB_WORKSPACE/$DIY_P1_SH
+      run: cd openwrt && chmod +x ../diy-part1.sh && ../diy-part1.sh
 
     - name: Update & Install feeds
       run: cd openwrt && ./scripts/feeds update -a && ./scripts/feeds install -a
 
     - name: Load custom configuration
       run: |
-        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
-        chmod +x $DIY_P2_SH
-        cd openwrt && $GITHUB_WORKSPACE/$DIY_P2_SH
+        [ -e .config ] && mv .config openwrt/.config
+        cd openwrt && chmod +x ../diy-part2.sh && ../diy-part2.sh
+        make defconfig
 
     - name: Download package
-      run: cd openwrt && make defconfig && make download -j$(nproc)
+      run: cd openwrt && make download -j$(nproc)
 
     - name: Compile the firmware
       run: |
@@ -62,10 +72,18 @@ jobs:
         make -j$(nproc) || make -j1 V=s
         echo "STRAP_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
 
+    # --- 核心：自动清理陈旧缓存 ---
+    # 使用 GitHub 官方提供的脚本逻辑，删除除了当前运行之外的所有旧缓存
+    - name: Cleanup Old Caches
+      uses: Myrtyle/delete-old-caches@v1
+      with:
+        keep-last: 2 # 保留最近的 2 份缓存，其余删除
+        token: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Organize files
       run: |
         cd openwrt/bin/targets/x86/64
-        # 将生成的镜像重命名为 F-wrt，方便识别
+        rm -rf packages
         for file in *.img.gz; do
           mv "$file" "F-wrt-${{ env.STRAP_DATE }}-${file}"
         done
@@ -75,7 +93,6 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         tag_name: F-wrt_${{ env.STRAP_DATE }}
-        name: F-wrt 自动编译发布 - ${{ env.STRAP_DATE }}
-        文件: ${{ env.FIRMWARE }}/F-wrt-*
+        files: ${{ env.FIRMWARE }}/F-wrt-*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
