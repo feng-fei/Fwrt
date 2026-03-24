@@ -6,7 +6,7 @@ sed -i 's/192.168.1.1/172.28.10.1/g' package/base-files/files/bin/config_generat
 sed -i 's/ImmortalWrt/F-wrt/g' package/base-files/files/bin/config_generate
 
 # 2. 修改默认密码 (jojo8888)
-sed -i 's/root:::0:99999:7:::/root:$1$vI6f7.oW$8X7Q1t7T6k1fR0T0e1\/:18888:0:99999:7:::/g' package/base-files/files/etc/shadow
+sed -i 's/root:::0:99999:7:::/root:$1$vI6f7.oW$8X7Q1t7T6k1fR0T0e1\/18888:0:99999:7:::/g' package/base-files/files/etc/shadow
 
 # 3. 注入固件配置 (插件、驱动与加速)
 cat >> .config <<EOF
@@ -37,7 +37,7 @@ CONFIG_PACKAGE_luci-app-vlmcsd=y
 CONFIG_PACKAGE_kmod-r8125=y
 CONFIG_PACKAGE_kmod-virtio-net=y
 CONFIG_PACKAGE_kmod-virtio-blk=y
+EOF
 
 # 强迫症选项：删除报错的 onionshare-cli 文件夹
 rm -rf package/feeds/packages/onionshare-cli
-EOF
