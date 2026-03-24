@@ -37,4 +37,7 @@ CONFIG_PACKAGE_luci-app-vlmcsd=y
 CONFIG_PACKAGE_kmod-r8125=y
 CONFIG_PACKAGE_kmod-virtio-net=y
 CONFIG_PACKAGE_kmod-virtio-blk=y
+
+# 强迫症选项：删除报错的 onionshare-cli 文件夹
+rm -rf package/feeds/packages/onionshare-cli
 EOF
