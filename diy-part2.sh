@@ -6,6 +6,10 @@ sed -i 's/ImmortalWrt/F-wrt/g' package/base-files/files/bin/config_generate
 
 # 2. 补全 LuCI 核心组件 (解决打不开网页的核心原因)
 cat >> .config <<EOF
+# ==================== 核心：指定编译目标架构 ====================
+CONFIG_TARGET_x86=y
+CONFIG_TARGET_x86_64=y
+CONFIG_TARGET_x86_64_Generic=y
 # LuCI 基础框架与 Web 服务器 (必选)
 CONFIG_PACKAGE_luci=y
 CONFIG_PACKAGE_luci-base=y
