@@ -68,6 +68,11 @@ sed -i 's/^root:.*$/root:$1$vI6f7.oW$8X7Q1t7T6k1fR0T0e1\/18888:0:99999:7:::/g' p
 mkdir -p package/base-files/files/etc/uci-defaults
 cat > package/base-files/files/etc/uci-defaults/99-f-wrt-init <<EOF
 #!/bin/sh
+# 开启 BBR 内核模块
+echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
+echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
+sysctl -p
+#!/bin/sh
 /etc/init.d/uhttpd enable
 /etc/init.d/uhttpd start
 exit 0
