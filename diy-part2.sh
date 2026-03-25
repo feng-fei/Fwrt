@@ -18,6 +18,10 @@ CONFIG_PACKAGE_uhttpd=y
 CONFIG_PACKAGE_uhttpd-mod-ubus=y
 CONFIG_PACKAGE_rpcd=y
 
+# Lucky 及其功能组件
+CONFIG_PACKAGE_luci-app-lucky=y
+CONFIG_PACKAGE_lucky=y
+
 # 你要求的特定插件
 CONFIG_PACKAGE_luci-app-aurora-config=y
 CONFIG_PACKAGE_luci-app-autoreboot=y
