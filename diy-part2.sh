@@ -14,8 +14,8 @@ CONFIG_TARGET_KERNEL_PARTSIZE=128
 CONFIG_TARGET_ROOTFS_PARTSIZE=512
 
 # 1. LuCI 基础框架语言包 (必选，否则菜单是英文)
-CONFIG_LUCI_LANG_zh_cn=y
-CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
+CONFIG_LUCI_LANG_zh_Hans=y
+
 
 # LuCI 基础框架与 Web 服务器 (必选)
 CONFIG_PACKAGE_luci=y
