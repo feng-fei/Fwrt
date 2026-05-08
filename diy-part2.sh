@@ -4,6 +4,10 @@
 sed -i 's/192.168.1.1/172.28.10.1/g' package/base-files/files/bin/config_generate
 sed -i 's/ImmortalWrt/F-WRT/g' package/base-files/files/bin/config_generate
 
+# 1.1 设置固件版本和编译日期
+BUILD_DATE=$(date +%Y%m%d)
+sed -i "s/DISTRIB_DESCRIPTION=.*/DISTRIB_DESCRIPTION='F-WRT Build Date: $BUILD_DATE'/g" package/base-files/files/etc/os-release
+
 # 2. 注入配置到 .config
 # 注意：这些配置会在编译时由 make defconfig 自动扩展依赖
 cat >> .config <<EOF
