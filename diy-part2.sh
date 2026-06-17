@@ -9,13 +9,12 @@ BUILD_DATE=$(date +%Y%m%d)
 sed -i "s/DISTRIB_DESCRIPTION=.*/DISTRIB_DESCRIPTION='F-WRT Build Date: $BUILD_DATE'/g" package/base-files/files/etc/os-release
 
 # 2. 注入配置到 .config
-# 注意：这些配置会在编译时由 make defconfig 自动扩展依赖
 cat >> .config <<EOF
 CONFIG_TARGET_x86=y
 CONFIG_TARGET_x86_64=y
 CONFIG_TARGET_x86_64_DEVICE_generic=y
 CONFIG_TARGET_KERNEL_PARTSIZE=128
-CONFIG_TARGET_ROOTFS_PARTSIZE=512
+CONFIG_TARGET_ROOTFS_PARTSIZE=2048
 CONFIG_LUCI_LANG_zh_Hans=y
 CONFIG_PACKAGE_luci=y
 CONFIG_PACKAGE_luci-app-lucky=n
@@ -28,22 +27,37 @@ CONFIG_PACKAGE_luci-theme-aurora=y
 CONFIG_PACKAGE_kmod-r8125=y
 CONFIG_PACKAGE_kmod-virtio-net=y
 CONFIG_PACKAGE_kmod-virtio-blk=y
+CONFIG_PACKAGE_kmod-virtio-balloon=y
 EOF
 
-# 3. 密码设置 (jojo8888)
-# 使用更直接的方式替换 root 密码行
-sed -i 's/^root:.*$/root:$1$vI6f7.oW$8X7Q1t7T6k1fR0T0e1\/:18888:0:99999:7:::/g' package/base-files/files/etc/shadow
+# 3. 密码设置
+# ⚠️ 安全说明：编译时替换密码容易因 shadow 文件格式变化而失败
+# 建议首次开机后手动设置：在 LuCI 系统 → 管理权 中修改，或 SSH 执行 passwd
+# 如果仍要在编译时注入密码，取消下方注释并替换成你的密码 hash
+# sed -i 's/^root:.*$/root:$1$vI6f7.oW$8X7Q1t7T6k1fR0T0e1/:18888:0:99999:7:::/g' package/base-files/files/etc/shadow
 
 # 4. 系统启动初始化
 mkdir -p package/base-files/files/etc/uci-defaults
-cat > package/base-files/files/etc/uci-defaults/99-f-wrt-init <<EOF
+cat > package/base-files/files/etc/uci-defaults/99-f-wrt-init <<'INIT'
 #!/bin/sh
+
+# ----- 网络优化 -----
 # 开启 BBR
 echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
 echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
-# 强制中文界面
+# VM 环境下减少内存换出，延长磁盘寿命
+echo "vm.swappiness=10" >> /etc/sysctl.conf
+# 减少 dentry/inode 缓存回收，提升文件操作性能
+echo "vm.vfs_cache_pressure=50" >> /etc/sysctl.conf
+
+# ----- 内存优化 (VM 环境) -----
+echo "vm.dirty_ratio=30" >> /etc/sysctl.conf
+echo "vm.dirty_background_ratio=5" >> /etc/sysctl.conf
+
+# ----- 强制中文界面 -----
 uci set luci.main.lang=zh_cn
 uci commit luci
+
 exit 0
-EOF
+INIT
 chmod +x package/base-files/files/etc/uci-defaults/99-f-wrt-init
